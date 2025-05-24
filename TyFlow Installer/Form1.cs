@@ -1,14 +1,20 @@
 ﻿using System;
+using System.ComponentModel;
 //using System.Collections.Generic;
 //using System.ComponentModel;
 //using System.Data;
 using System.Drawing;
+using System.IO;
+using System.IO.Compression;
+using System.Linq;
+using System.Net;
+using System.Reflection.Emit;
+
 //using System.Linq;
 //using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using System.IO;
-using System.IO.Compression;
+
 //using System.Threading.Tasks;
 
 namespace TyFlow_Installer
@@ -17,10 +23,18 @@ namespace TyFlow_Installer
     {
         // string startPath = @"c:\example\start";
         string zipPath = "";// @"C:\Users\JARVIS\Downloads\tyFlow_1127.zip";
+      
         
         //temp path where zip file will be extracted
         string extractPath = Path.GetTempPath() + "tyflowTemp";
+        string textFileName = @"\tyflow_latest.txt";
+        string htmlToTextPath = "";
+        string downloadURL = @"https://pro.tyflow.com/download/dlo/";
 
+        string internalVersion = "";
+        string externalVersion = "";
+        bool isDownloading = false;
+        WebClient zipWebClient = null;
         //bool overwriteFiles = true;
         RegistryFuncions registryFunctions = new RegistryFuncions();
 
@@ -29,7 +43,7 @@ namespace TyFlow_Installer
         public TyFlow()
         {
             InitializeComponent();
-
+            htmlToTextPath  = extractPath + textFileName;
             this.AllowDrop = true;
             this.DragEnter += Form1_DragEnter;
             this.DragDrop += Form1_DragDrop;
@@ -41,31 +55,54 @@ namespace TyFlow_Installer
 
         private void ExtractBtn_Click(object sender, EventArgs e)
         {
-            //registryFunctions.GetMaxInstallLocations();
-            // string startPath = @"c:\example\start";
-            // string zipPath = @"C:\Users\JARVIS\Downloads\tyFlow_1127.zip";
-            //  string extractPath = Path.GetTempPath()+"\\tyflowTemp"; 
-            //Encoding.RegisterProvider(CodePagesEncodingProvider.Instance);
-            // Encoding entryNameEncoding = Encoding.GetEncoding(850);
-            //System.IO.Compression.ZipFile.CreateFromDirectory(startPath, zipPath);
+
+            ExtractAndInstall();
+
+        }
+
+
+        private async Task ExtractAndInstall(bool removeDirexctory = true)
+        {
+
 
             Install_Btn.Enabled = false;
             Install_Btn.Visible = Install_Btn.Enabled;
 
             // if previous extracted zip file directory exists than delete it
-            if (Directory.Exists(extractPath))
+            if (Directory.Exists(extractPath) && removeDirexctory)
             {
                 DeleteDirectory(extractPath);
             }
 
             // ZipFile.ExtractToDirectory(zipPath, extractPath);
 
+
+
             //Extract zip file and wait till extraction is complete
+            label2.Text = "Extracting zip file...";
             Task.Run(() => ZipFile.ExtractToDirectory(zipPath, extractPath)).Wait();
-            Task.Run(() => File.Copy(extractPath+"\\tyFlow_2020.dlo", extractPath + "\\tyFlow_2021.dlo")).Wait();
+            label2.Text = "Zip file extracted successfully";
+            /*
+            using (var archive = ZipFile.OpenRead(zipPath))
+            {
+                var count = archive.Entries.Count(x => !string.IsNullOrWhiteSpace(x.Name));
+
+                foreach (var entry in archive.Entries)
+                {
+                    await Task.Run(() => { ZipFile.};
+                }
+            }
+            */
+
+            //make copy of 2020 version and rename it as 2021 version , as 2021 dlo is same as provided for 2020
+            if (File.Exists(extractPath + "\\tyFlow_2020.dlo"))
+            {
+                Task.Run(() => File.Copy(extractPath + "\\tyFlow_2020.dlo", extractPath + "\\tyFlow_2021.dlo")).Wait();
+            }
 
             // get paths for all .dlo files extracted from zip file as an array
             var ExtractedPluginsPaths = Directory.GetFiles(extractPath, "*.dlo", SearchOption.AllDirectories);
+
 
             // extract 3ds max version from each dlo's name 
             for (int i = 0; i < ExtractedPluginsPaths.Length; i++)
@@ -74,7 +111,7 @@ namespace TyFlow_Installer
                 var dlo_max_ver = ExtractedPluginsPaths[i].Split('_')[1];
                 // remove extention ".dlo" from the dlo file name
                 dlo_max_ver = dlo_max_ver.Split('.')[0];
-                
+
                 // convert remaining dlo name  i.e year number from string to int
                 int trimmedDloMaxVersion = int.Parse(dlo_max_ver);
                 Console.WriteLine(trimmedDloMaxVersion);
@@ -87,7 +124,7 @@ namespace TyFlow_Installer
                 AddButton(i, trimmedDloMaxVersion, isValidInstall);
 
                 // print full path for each dlo extracted from zip file 
-                Console.WriteLine("extracted plugin path :"+ExtractedPluginsPaths[i]);
+                Console.WriteLine("extracted plugin path :" + ExtractedPluginsPaths[i]);
 
                 //Console.WriteLine(ExtractedPluginsPaths[i]);
 
@@ -97,10 +134,10 @@ namespace TyFlow_Installer
 
                 // check if downloaded dlo version has required max version installed
                 if (isValidInstall)
-                {   
+                {
                     // path to existing tyflow plugin files
                     string maxPluginPath = registryFunctions.maxPaths[trimmedDloMaxVersion] + "plugins\\tyFlow_" + trimmedDloMaxVersion + ".dlo";
-                    
+
                     // delete existing tyflow plugin from max plugin directory
                     Task.Run(() => File.Delete(maxPluginPath)).Wait();
                     Console.WriteLine("deleting: " + maxPluginPath);
@@ -108,7 +145,7 @@ namespace TyFlow_Installer
                     // move updated dlo file from extracted zip folder to max plugin directory
                     Task.Run(() => File.Move(extractPath + "\\tyFlow_" + trimmedDloMaxVersion + ".dlo", maxPluginPath)).Wait();
                     Console.WriteLine("Moving from : " + extractPath + "\\tyFlow_" + trimmedDloMaxVersion + ".dlo TO " + maxPluginPath);
-                    
+                    label2.Text = "Plugin Installed successfully";
 
                 }
                 // File.Delete(registryFunctions.maxPaths[trimmedDloMaxVersion]);
@@ -122,10 +159,7 @@ namespace TyFlow_Installer
                 ExtractBtn.Enabled = false;
                 ExtractBtn.Visible = ExtractBtn.Enabled;
             }
-
-
         }
-
        
         /// <summary>
         /// deletes the existing temp directory so that each time newly updated files are extracted to that location
@@ -186,6 +220,8 @@ namespace TyFlow_Installer
         /// <param name="e"></param>
         private void Install_Btn_Click(object sender, EventArgs e)
         {
+            CancelZipDownload();
+
             ExtractBtn.Enabled = false;
             ExtractBtn.Visible = ExtractBtn.Enabled;
 
@@ -204,8 +240,10 @@ namespace TyFlow_Installer
             Install_Btn.Enabled = false;
             Install_Btn.Visible = Install_Btn.Enabled;
 
-            ExtractBtn.Enabled = true;
-            ExtractBtn.Visible = ExtractBtn.Enabled;
+            
+            // ExtractBtn.Enabled = true;
+            // ExtractBtn.Visible = ExtractBtn.Enabled;
+            ExtractAndInstall();
         }
 
 
@@ -242,6 +280,122 @@ namespace TyFlow_Installer
             }
         }
 
-       
+        private void downloadBtn_Click(object sender, EventArgs e)
+        {
+            if (!isDownloading)
+            {
+                CheckLatestBuild();
+                isDownloading = true;
+            }
+            else
+            {
+                CancelZipDownload();
+            }
+            //startDownload();
+        }
+
+        public void CancelZipDownload()
+        {
+            if (isDownloading)
+            {
+                zipWebClient.CancelAsync();
+                label2.Text = "Download Aborted";
+                progressBar1.Value = 0;
+                zipWebClient.DownloadFileCompleted -= new AsyncCompletedEventHandler(client_DownloadFileCompleted);
+                isDownloading = false;
+            }
+        }
+
+        private void startDownloadZip()
+        {
+            
+            zipWebClient = new WebClient();
+            zipWebClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
+            zipWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted);
+            zipWebClient.DownloadFileAsync(new Uri(downloadURL+internalVersion+".zip"),extractPath+@"\"+internalVersion+".zip");
+            Console.WriteLine("URL :" +downloadURL + internalVersion);
+            Console.WriteLine("download extract path: "+extractPath + @"\"+internalVersion +".zip");           
+
+        }
+
+        
+
+        void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
+        {
+            double bytesIn = double.Parse(((e.BytesReceived/1024)/1024).ToString());
+            double totalBytes = double.Parse(((e.TotalBytesToReceive/1024)/1024).ToString());
+            double percentage = bytesIn / totalBytes * 100;
+            label2.Text = externalVersion + "\n\n" + "Downloaded " + bytesIn + " MB of " + totalBytes +" MB";
+           // label2.Text =  externalVersion + "\n" +  "Downloaded " + e.BytesReceived + " of " + e.TotalBytesToReceive ;
+            progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
+        }
+
+        void client_DownloadFileCompleted(object sender, AsyncCompletedEventArgs e)
+        {
+            label2.Text = "Completed";
+            zipPath = extractPath + @"\" + internalVersion + ".zip";
+            Console.WriteLine(zipPath);
+            ExtractAndInstall(false);
+
+        }
+
+        void client_DownloadProgressChanged_html(object sender, DownloadProgressChangedEventArgs e)
+        {
+            double bytesIn = double.Parse(e.BytesReceived.ToString());
+            double totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
+            double percentage = bytesIn / totalBytes * 100;
+            label2.Text = "Latest Version Downloaded Info " + e.BytesReceived + " of " + e.TotalBytesToReceive;
+            progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
+        }
+
+        void client_DownloadFileCompleted_html(object sender, AsyncCompletedEventArgs e)
+        {
+            label2.Text = "Version Info Downloaded ";
+            ProcessTextFile();
+
+        }
+        private void CheckLatestBuild()
+        {
+            if (Directory.Exists(extractPath))
+            {
+                DeleteDirectory(extractPath);
+            }
+            
+            
+            // Directory.Delete(extractPath);
+            Directory.CreateDirectory(extractPath);
+            
+
+            WebClient client = new WebClient();
+            client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged_html);
+            client.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
+            Console.WriteLine(htmlToTextPath);
+            client.DownloadFileAsync(new Uri("https://docs.tyflow.com/download/index.html"), htmlToTextPath);
+        }
+
+        public void ProcessTextFile()
+        {
+            string lineWithLatestVersion = "";
+            //string internalVersion = "";
+            //string externalVersion = "";
+            Console.WriteLine("Reading Text File For Version");
+            foreach (string line in File.ReadLines(htmlToTextPath))
+            {
+                if (line.Contains("<option class=\"download-dropdown-item\" value=") & line.Contains("tyFlow_"))
+                {
+                    Console.WriteLine(line);
+                    lineWithLatestVersion = line;
+                    break;
+                }
+            }
+
+            internalVersion = lineWithLatestVersion.Split('"')[3];
+            externalVersion = lineWithLatestVersion.Split('>')[1];
+            externalVersion = externalVersion.Split('<')[0];
+            Console.WriteLine(internalVersion);
+            Console.WriteLine(externalVersion);
+            startDownloadZip();
+        }
+
     }
 }

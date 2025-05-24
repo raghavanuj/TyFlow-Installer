@@ -1,0 +1,102 @@
+var pages, searchIndex, $results, pagesIndex;
+
+const options = 
+{
+	limit:10,
+	threshold: -100000,
+	allowTypo: false,
+	keys: ['title', 'content'],
+};
+
+function initSearchIndex() {
+  
+  $.getJSON('/js/search/index.json', function (data) 
+  {
+    pages = data;    
+    });  	
+}
+
+function initUI() {
+  $results = $('#results');
+  $('#search').keyup(function(event) 
+  {
+	//if (event.keyCode == 13)
+	{
+		$results.empty();
+		// only search when query has 2 characters or more
+		var query = $(this).val();	
+		if (query.length < 2) 
+		{
+		  return;
+		}
+		var results = searchSite(query);	
+		renderResults(results);	
+	}
+  });
+}
+
+function searchSite(query_string) 
+{
+	var startTime = performance.now();
+	var search = fuzzysort.go(query_string, pages, options);
+	var endTime = performance.now()
+
+	//console.log(endTime - startTime);	
+		
+	return search;
+}
+
+function renderResults(results) 
+{
+  if (!results.length) {	  
+    return;
+  }
+    
+  results.slice(0, 8).forEach(function(hit) 
+  {
+    var $result = $('<li>');
+	
+	var title = hit.obj.title;
+	var content = hit.obj.content;
+	var excludeFromSearch = hit.obj.excludeFromSearch;
+	
+	
+	if (excludeFromSearch)
+	{
+		
+	}else
+	{				
+		var highlight = (fuzzysort.highlight(hit[0], "<mark><b>", "</b></mark>"));
+		if (highlight)
+		{
+			title = highlight;
+		}
+		
+		highlight = (fuzzysort.highlight(hit[1], "<mark><b>", "</b></mark>"));
+		if (highlight)
+		{
+			content = highlight;
+		}		http://www.w3schools.com/tags/tag_br.asp
+		title = title.replace('🡆 ', '');
+					
+		var node = document.createElement("li");
+				
+		content = content.slice(Math.max(0, hit[1].indexes[0] - 15), Math.min(hit[1].indexes[0] + 200, content.length - 1));
+		
+		var str = "<font size=\"+0\"><a href = " + hit.obj.href + ">" + title + "</font><br /><font size=\"-1\">" + content.slice(0, 125) + "...</font></a>";
+		node.innerHTML = str;
+		
+		$result.append(node);
+				
+		$results.append($result);	
+		
+		$results.append("<hr />");
+	}
+  });
+}
+
+initSearchIndex();
+
+$(document).ready(function() {
+  initUI();
+});

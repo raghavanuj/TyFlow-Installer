@@ -1,4 +1,6 @@
-﻿namespace TyFlow_Installer
+﻿using System.Drawing;
+
+namespace TyFlow_Installer
 {
     partial class TyFlow
     {
@@ -32,6 +34,10 @@
             this.ExtractBtn = new System.Windows.Forms.Button();
             this.pictureBox1 = new System.Windows.Forms.PictureBox();
             this.Install_Btn = new System.Windows.Forms.Button();
+            this.progressBar1 = new System.Windows.Forms.ProgressBar();
+            this.downloadBtn = new System.Windows.Forms.Button();
+            this.label2 = new System.Windows.Forms.Label();
+            this.label1 = new System.Windows.Forms.Label();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -56,11 +62,41 @@
             this.Install_Btn.UseVisualStyleBackColor = true;
             this.Install_Btn.Click += new System.EventHandler(this.Install_Btn_Click);
             // 
+            // progressBar1
+            // 
+            this.progressBar1.BackColor = System.Drawing.SystemColors.WindowText;
+            resources.ApplyResources(this.progressBar1, "progressBar1");
+            this.progressBar1.Name = "progressBar1";
+            // 
+            // downloadBtn
+            // 
+            resources.ApplyResources(this.downloadBtn, "downloadBtn");
+            this.downloadBtn.Name = "downloadBtn";
+            this.downloadBtn.UseVisualStyleBackColor = true;
+            this.downloadBtn.Click += new System.EventHandler(this.downloadBtn_Click);
+            // 
+            // label2
+            // 
+            resources.ApplyResources(this.label2, "label2");
+            this.label2.BackColor = System.Drawing.Color.Black;
+            this.label2.ForeColor = System.Drawing.SystemColors.ButtonFace;
+            this.label2.Name = "label2";
+            // 
+            // label1
+            // 
+            resources.ApplyResources(this.label1, "label1");
+            this.label1.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
+            this.label1.Name = "label1";
+            // 
             // TyFlow
             // 
             resources.ApplyResources(this, "$this");
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Desktop;
+            this.Controls.Add(this.label1);
+            this.Controls.Add(this.label2);
+            this.Controls.Add(this.downloadBtn);
+            this.Controls.Add(this.progressBar1);
             this.Controls.Add(this.Install_Btn);
             this.Controls.Add(this.pictureBox1);
             this.Controls.Add(this.ExtractBtn);
@@ -78,6 +114,10 @@
         private System.Windows.Forms.Button ExtractBtn;
         private System.Windows.Forms.PictureBox pictureBox1;
         private System.Windows.Forms.Button Install_Btn;
+        private System.Windows.Forms.ProgressBar progressBar1;
+        private System.Windows.Forms.Button downloadBtn;
+        private System.Windows.Forms.Label label2;
+        private System.Windows.Forms.Label label1;
     }
 }
 

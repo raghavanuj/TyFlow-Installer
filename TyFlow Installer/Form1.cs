@@ -34,7 +34,9 @@ namespace TyFlow_Installer
         string internalVersion = "";
         string externalVersion = "";
         bool isDownloading = false;
+        bool isCheckingVersion = false;
         WebClient zipWebClient = null;
+        WebClient htmlWebClient = null;
         //bool overwriteFiles = true;
         RegistryFuncions registryFunctions = new RegistryFuncions();
 
@@ -282,15 +284,29 @@ namespace TyFlow_Installer
 
         private void downloadBtn_Click(object sender, EventArgs e)
         {
-            if (!isDownloading)
+            if (isDownloading)
+            {
+                //CheckLatestBuild();
+                //isDownloading = true;
+                //isDownloading = true;
+                CancelZipDownload();
+                return;
+            }
+
+            if (!isCheckingVersion )
             {
                 CheckLatestBuild();
-                isDownloading = true;
+                isCheckingVersion = true;
+                //isDownloading = true;
             }
             else
             {
-                CancelZipDownload();
+                CancelVersionChecking();
+                return;
             }
+
+           
+           
             //startDownload();
         }
 
@@ -306,6 +322,18 @@ namespace TyFlow_Installer
             }
         }
 
+        public void CancelVersionChecking()
+        {
+            if (isCheckingVersion)
+            {
+                htmlWebClient.CancelAsync();
+                label2.Text = "Version Check Aborted";
+                progressBar1.Value = 0;
+                htmlWebClient.DownloadFileCompleted -= new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
+                isCheckingVersion = false;
+            }
+        }
+
         private void startDownloadZip()
         {
             
@@ -314,7 +342,9 @@ namespace TyFlow_Installer
             zipWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted);
             zipWebClient.DownloadFileAsync(new Uri(downloadURL+internalVersion+".zip"),extractPath+@"\"+internalVersion+".zip");
             Console.WriteLine("URL :" +downloadURL + internalVersion);
-            Console.WriteLine("download extract path: "+extractPath + @"\"+internalVersion +".zip");           
+            Console.WriteLine("download extract path: "+extractPath + @"\"+internalVersion +".zip");
+            isDownloading = true;
+            isCheckingVersion=false;
 
         }
 
@@ -366,11 +396,11 @@ namespace TyFlow_Installer
             Directory.CreateDirectory(extractPath);
             
 
-            WebClient client = new WebClient();
-            client.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged_html);
-            client.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
+             htmlWebClient= new WebClient();
+            htmlWebClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged_html);
+            htmlWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
             Console.WriteLine(htmlToTextPath);
-            client.DownloadFileAsync(new Uri("https://docs.tyflow.com/download/index.html"), htmlToTextPath);
+            htmlWebClient.DownloadFileAsync(new Uri("https://docs.tyflow.com/download/index.html"), htmlToTextPath);
         }
 
         public void ProcessTextFile()

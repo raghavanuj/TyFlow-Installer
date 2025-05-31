@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.ComponentModel;
 //using System.Collections.Generic;
 //using System.ComponentModel;
@@ -23,8 +24,8 @@ namespace TyFlow_Installer
     {
         // string startPath = @"c:\example\start";
         string zipPath = "";// @"C:\Users\JARVIS\Downloads\tyFlow_1127.zip";
-      
-        
+
+
         //temp path where zip file will be extracted
         string extractPath = Path.GetTempPath() + "tyflowTemp";
         string textFileName = @"\tyflow_latest.txt";
@@ -35,17 +36,20 @@ namespace TyFlow_Installer
         string externalVersion = "";
         bool isDownloading = false;
         bool isCheckingVersion = false;
+        bool canDownload = false;
         WebClient zipWebClient = null;
         WebClient htmlWebClient = null;
         //bool overwriteFiles = true;
         RegistryFuncions registryFunctions = new RegistryFuncions();
 
-        
+        Dictionary<int, string> maxPaths = new Dictionary<int, string>();
+
+        List<MaxVersions> maxVersionUI = new List<MaxVersions>();
 
         public TyFlow()
         {
             InitializeComponent();
-            htmlToTextPath  = extractPath + textFileName;
+            htmlToTextPath = extractPath + textFileName;
             this.AllowDrop = true;
             this.DragEnter += Form1_DragEnter;
             this.DragDrop += Form1_DragDrop;
@@ -104,11 +108,12 @@ namespace TyFlow_Installer
 
             // get paths for all .dlo files extracted from zip file as an array
             var ExtractedPluginsPaths = Directory.GetFiles(extractPath, "*.dlo", SearchOption.AllDirectories);
-
+            UpdateMaxVersionsUI(ExtractedPluginsPaths);
 
             // extract 3ds max version from each dlo's name 
             for (int i = 0; i < ExtractedPluginsPaths.Length; i++)
             {
+                Console.WriteLine("Extracted Plugin Path: " + ExtractedPluginsPaths[i]);
                 // remove tyFlow_ from the dlo file name
                 var dlo_max_ver = ExtractedPluginsPaths[i].Split('_')[1];
                 // remove extention ".dlo" from the dlo file name
@@ -116,30 +121,47 @@ namespace TyFlow_Installer
 
                 // convert remaining dlo name  i.e year number from string to int
                 int trimmedDloMaxVersion = int.Parse(dlo_max_ver);
-                Console.WriteLine(trimmedDloMaxVersion);
+                //Console.WriteLine(trimmedDloMaxVersion);
 
                 // check each dlo if required version for that dlo is installed by checking registry entries
-                bool isValidInstall = registryFunctions.maxPaths.ContainsKey(trimmedDloMaxVersion);
+                //bool isValidInstall = registryFunctions.maxPaths.ContainsKey(trimmedDloMaxVersion);
 
-                // add button for visual representation of each dlo matched with required max version installed
-                // green: required max version found ; Red: required max version for dlo not installed  
-                AddButton(i, trimmedDloMaxVersion, isValidInstall);
+                bool isValidInstall = maxPaths.ContainsKey(trimmedDloMaxVersion);
 
-                // print full path for each dlo extracted from zip file 
-                Console.WriteLine("extracted plugin path :" + ExtractedPluginsPaths[i]);
-
-                //Console.WriteLine(ExtractedPluginsPaths[i]);
-
-                //after zip extraction disable its button , and enable button for moving updated dlos -
-                // - to corresponding max plugins folder
+              
                 ExtractBtn.Enabled = false;
 
                 // check if downloaded dlo version has required max version installed
                 if (isValidInstall)
                 {
                     // path to existing tyflow plugin files
-                    string maxPluginPath = registryFunctions.maxPaths[trimmedDloMaxVersion] + "plugins\\tyFlow_" + trimmedDloMaxVersion + ".dlo";
 
+                    string maxPluginPath = maxPaths[trimmedDloMaxVersion] + "plugins";//\\tyFlow_";// + trimmedDloMaxVersion + ".dlo";
+                    if (!Directory.Exists(maxPluginPath))
+                    {
+                        Directory.CreateDirectory(maxPluginPath);
+                    }
+                    maxPluginPath = Path.Combine(maxPluginPath, "tyFlow_"+trimmedDloMaxVersion + ".dlo");
+                    
+                    
+                    foreach (var mv in maxVersionUI)
+                    {
+                        if(mv.maxVersion == trimmedDloMaxVersion)
+                        {
+                            maxPluginPath = mv.textBox.Text + "plugins\\";
+                            if (!Directory.Exists(maxPluginPath))
+                            {
+                                Directory.CreateDirectory(maxPluginPath);
+                            }
+                            string extendedPath = "tyFlow_"+trimmedDloMaxVersion + ".dlo";
+                            maxPluginPath = Path.Combine(maxPluginPath, extendedPath);
+                        }
+
+                       
+                       
+                    }
+                    Console.WriteLine("final path "+ maxPluginPath);
+                    // string maxPluginPath = maxVersionUI[maxPaths[trimmedDloMaxVersion].IndexOf()] + "plugins\\tyFlow_" + trimmedDloMaxVersion + ".dlo";
                     // delete existing tyflow plugin from max plugin directory
                     Task.Run(() => File.Delete(maxPluginPath)).Wait();
                     Console.WriteLine("deleting: " + maxPluginPath);
@@ -162,7 +184,7 @@ namespace TyFlow_Installer
                 ExtractBtn.Visible = ExtractBtn.Enabled;
             }
         }
-       
+
         /// <summary>
         /// deletes the existing temp directory so that each time newly updated files are extracted to that location
         /// </summary>
@@ -186,10 +208,22 @@ namespace TyFlow_Installer
         /// <param name="e"></param>
         private void Form1_Load(object sender, EventArgs e)
         {
-            registryFunctions.GetMaxInstallLocations();
-           
+            maxPaths = registryFunctions.GetMaxInstallLocations();
+            CheckLatestVersionOnline();
+            AddMaxInstallsUI();
+
+
         }
 
+        void AddMaxInstallsUI()
+        {
+            maxVersionUI = new List<MaxVersions>();
+            for (int i = 0; i < maxPaths.Keys.Count; i++)
+            {
+                AddButton(i, maxPaths.Keys.ElementAt(i), true);
+                //maxVersionButtons.Add((Button)this.Controls[i + 3]); // +3 because first 3 controls are not buttons
+            }
+        }
 
         /// <summary>
         /// Visual indicator to show which max versions got updated tyflow version
@@ -200,20 +234,96 @@ namespace TyFlow_Installer
         /// <param name="isValidInstall"></param>
         private void AddButton(int i, int _maxversion, bool isValidInstall)
         {
+            // create new button for each max version found in registry and add it to the form
             Button newButton = new Button();
+
 
             this.Controls.Add(newButton);
             newButton.Text = _maxversion.ToString();
-            int startPos =50;
-            newButton.Location = new Point(startPos + (108 * i), 205);
+            int startPos = 190;
+            //newButton.Location = new Point(startPos + (108 * i), 205);
+            newButton.Location = new Point(startPos, 175 + (i * 25));
             newButton.Size = new Size(75, 23);
             newButton.FlatStyle = FlatStyle.Standard;
             // newButton.BackColor = Color.GreenYellow;
             //newButton.BackColor = Color.Aqua;
-            newButton.BackColor = isValidInstall ? Color.LawnGreen: Color.Red;
-           
+            newButton.BackColor = isValidInstall ? Color.LawnGreen : Color.Red;
+
+            ////////////////////////////////////////////////////////////////
+            TextBox tb = new TextBox();
+            //int tbWidth = tb.Width;
+            this.Controls.Add(tb);
+            tb.Location = new Point(startPos + 75, newButton.Top +2);
+            tb.Size = new Size(250, 23);
+            //tb.FlatStyle = FlatStyle.Standard;
+            if (isValidInstall)
+            {
+                tb.Text = registryFunctions.maxPaths[_maxversion];
+            }
+
+
+            Button browseBtn = new Button();
+            this.Controls.Add(browseBtn);
+            browseBtn.Location = new Point(startPos + 75 + tb.Width, newButton.Top);
+            browseBtn.Size = newButton.Size;
+            browseBtn.Text = "browse";
+            browseBtn.FlatStyle = FlatStyle.Standard;           
+            browseBtn.BackColor = Color.White;
+           // browseBtn.Name = "browseBtn_" + _maxversion.ToString();
+            browseBtn.Name = "browseBtn_" + i;
+            browseBtn.Click += OnBrowseBtn;
+
+            MaxVersions mv = new MaxVersions(newButton, tb, _maxversion,browseBtn);
+            maxVersionUI.Add(mv);
         }
 
+        void OnBrowseBtn(object sender, EventArgs e)
+        {
+            Button clickedButton = sender as Button;
+            int index = int.Parse( clickedButton.Name.Split('_')[1]);
+            Console.WriteLine();
+            OpenFileDialog folderBrowser = new OpenFileDialog();
+            folderBrowser.ValidateNames = false;
+            folderBrowser.CheckFileExists = false;
+            folderBrowser.CheckPathExists = true;
+            //folderBrowser.DefaultExt = ".zip";
+            //openFileDialog1.Filter = "Zip files (tyFlow_*.zip)|tyFlow_*.zip";
+            //DialogResult result = folderBrowser.ShowDialog(); // Show the dialog.
+
+            folderBrowser.FileName = "Max root Path.";
+            if (folderBrowser.ShowDialog() == DialogResult.OK)
+            {
+                string folderPath = Path.GetDirectoryName(folderBrowser.FileName) +@"\";
+                maxVersionUI[index].textBox.Text = folderPath;
+                // ...
+            }
+        }
+
+        private void UpdateMaxVersionsUI(string[] _dloPaths)
+        {
+            List<int> maxDloVersions = new List<int>() ;
+            foreach (string dloVer in _dloPaths)
+            {
+                var dlo_max_ver = dloVer.Split('_')[1];
+                dlo_max_ver = dlo_max_ver.Split('.')[0];
+                int trimmedDloMaxVersion = int.Parse(dlo_max_ver);
+                maxDloVersions.Add(trimmedDloMaxVersion);
+            }
+                for (int i = 0; i < maxPaths.Keys.Count; i++)
+            {
+
+                var currKey = maxPaths.Keys.ElementAt(i);
+                Console.WriteLine("max paths found " + maxPaths.Keys.Count);// + maxDloVersions.Contains(currKey));
+                bool _isValidInstall = maxDloVersions.Contains(currKey);
+                Console.WriteLine(currKey + " ______________ " + _isValidInstall);
+                maxVersionUI[i].button.BackColor = _isValidInstall ? Color.LawnGreen : Color.DimGray;
+                maxVersionUI[i].textBox.Enabled = _isValidInstall;
+                maxVersionUI[i].button.Enabled = _isValidInstall;
+                maxVersionUI[i].textBox.Text = _isValidInstall ? maxVersionUI[i].textBox.Text : "This TyFlow version is not supported for " + maxVersionUI[i].maxVersion;
+            
+                
+            }
+        }
 
         /// <summary>
         /// browse zip file downloaded from tyflow website, restrict file browser to .zip file only
@@ -231,18 +341,25 @@ namespace TyFlow_Installer
             openFileDialog1.DefaultExt = ".zip";
             openFileDialog1.Filter = "Zip files (tyFlow_*.zip)|tyFlow_*.zip";
             DialogResult result = openFileDialog1.ShowDialog(); // Show the dialog.
-            
+
             if (result == DialogResult.OK) // Test result.
             {
-               zipPath = openFileDialog1.FileName;
+                zipPath = openFileDialog1.FileName;
+
+                
 
             }
+            else
+            {                 // user cancelled the file selection
+                return;
+            }
+
 
 
             Install_Btn.Enabled = false;
             Install_Btn.Visible = Install_Btn.Enabled;
 
-            
+
             // ExtractBtn.Enabled = true;
             // ExtractBtn.Visible = ExtractBtn.Enabled;
             ExtractAndInstall();
@@ -273,13 +390,29 @@ namespace TyFlow_Installer
             if (files.Length == 1)
             {
                 // do what you want
-                Console.WriteLine(files[0]);
+               // Console.WriteLine(files[0]);
                 zipPath = files[0];
             }
             else
             {
                 // show error
             }
+        }
+
+        private void CheckLatestVersionOnline()
+        {
+            if (!isCheckingVersion)
+            {
+                CheckLatestBuild();
+                isCheckingVersion = true;
+                //isDownloading = true;
+            }
+            else
+            {
+                CancelVersionChecking();
+                return;
+            }
+            //CheckLatestBuild();
         }
 
         private void downloadBtn_Click(object sender, EventArgs e)
@@ -293,20 +426,16 @@ namespace TyFlow_Installer
                 return;
             }
 
-            if (!isCheckingVersion )
+            if (canDownload)
             {
-                CheckLatestBuild();
-                isCheckingVersion = true;
-                //isDownloading = true;
-            }
-            else
-            {
-                CancelVersionChecking();
+                startDownloadZip();
                 return;
             }
 
-           
-           
+
+
+
+
             //startDownload();
         }
 
@@ -336,27 +465,27 @@ namespace TyFlow_Installer
 
         private void startDownloadZip()
         {
-            
+
             zipWebClient = new WebClient();
             zipWebClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged);
             zipWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted);
-            zipWebClient.DownloadFileAsync(new Uri(downloadURL+internalVersion+".zip"),extractPath+@"\"+internalVersion+".zip");
-            Console.WriteLine("URL :" +downloadURL + internalVersion);
-            Console.WriteLine("download extract path: "+extractPath + @"\"+internalVersion +".zip");
+            zipWebClient.DownloadFileAsync(new Uri(downloadURL + internalVersion + ".zip"), extractPath + @"\" + internalVersion + ".zip");
+            Console.WriteLine("URL :" + downloadURL + internalVersion);
+            Console.WriteLine("download extract path: " + extractPath + @"\" + internalVersion + ".zip");
             isDownloading = true;
-            isCheckingVersion=false;
+            isCheckingVersion = false;
 
         }
 
-        
+
 
         void client_DownloadProgressChanged(object sender, DownloadProgressChangedEventArgs e)
         {
-            double bytesIn = double.Parse(((e.BytesReceived/1024)/1024).ToString());
-            double totalBytes = double.Parse(((e.TotalBytesToReceive/1024)/1024).ToString());
+            double bytesIn = double.Parse(((e.BytesReceived / 1024) / 1024).ToString());
+            double totalBytes = double.Parse(((e.TotalBytesToReceive / 1024) / 1024).ToString());
             double percentage = bytesIn / totalBytes * 100;
-            label2.Text = externalVersion + "\n\n" + "Downloaded " + bytesIn + " MB of " + totalBytes +" MB";
-           // label2.Text =  externalVersion + "\n" +  "Downloaded " + e.BytesReceived + " of " + e.TotalBytesToReceive ;
+            label2.Text = externalVersion + " " + "Downloaded " + bytesIn + " MB of " + totalBytes + " MB";
+            // label2.Text =  externalVersion + "\n" +  "Downloaded " + e.BytesReceived + " of " + e.TotalBytesToReceive ;
             progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
         }
 
@@ -375,7 +504,7 @@ namespace TyFlow_Installer
             double totalBytes = double.Parse(e.TotalBytesToReceive.ToString());
             double percentage = bytesIn / totalBytes * 100;
             label2.Text = "Latest Version Downloaded Info " + e.BytesReceived + " of " + e.TotalBytesToReceive;
-            progressBar1.Value = int.Parse(Math.Truncate(percentage).ToString());
+            progressBar2.Value = int.Parse(Math.Truncate(percentage).ToString());
         }
 
         void client_DownloadFileCompleted_html(object sender, AsyncCompletedEventArgs e)
@@ -390,13 +519,13 @@ namespace TyFlow_Installer
             {
                 DeleteDirectory(extractPath);
             }
-            
-            
+
+
             // Directory.Delete(extractPath);
             Directory.CreateDirectory(extractPath);
-            
 
-             htmlWebClient= new WebClient();
+
+            htmlWebClient = new WebClient();
             htmlWebClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged_html);
             htmlWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
             Console.WriteLine(htmlToTextPath);
@@ -424,8 +553,36 @@ namespace TyFlow_Installer
             externalVersion = externalVersion.Split('<')[0];
             Console.WriteLine(internalVersion);
             Console.WriteLine(externalVersion);
-            startDownloadZip();
+            latestVersion.Text = "Latest Version: " + externalVersion;
+            latestVersion.Visible = true;
+            canDownload = true;
+            // startDownloadZip();
         }
 
+        private void progressBar2_Click(object sender, EventArgs e)
+        {
+
+        }
+
+        private void latestVersion_Click(object sender, EventArgs e)
+        {
+            CheckLatestVersionOnline();
+        }
+
+        struct MaxVersions
+        {
+            public Button button;
+            public TextBox textBox;
+            public int maxVersion;
+            public Button browseBtn;
+
+            public MaxVersions(Button b, TextBox tb, int mv, Button browsebtn)
+            {
+                button = b;
+                textBox = tb;
+                maxVersion = mv;
+                browseBtn = browsebtn;
+            }
+        }
     }
 }

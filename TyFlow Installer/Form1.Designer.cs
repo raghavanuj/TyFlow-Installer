@@ -38,6 +38,8 @@ namespace TyFlow_Installer
             this.downloadBtn = new System.Windows.Forms.Button();
             this.label2 = new System.Windows.Forms.Label();
             this.label1 = new System.Windows.Forms.Label();
+            this.latestVersion = new System.Windows.Forms.Label();
+            this.progressBar2 = new System.Windows.Forms.ProgressBar();
             ((System.ComponentModel.ISupportInitialize)(this.pictureBox1)).BeginInit();
             this.SuspendLayout();
             // 
@@ -88,11 +90,26 @@ namespace TyFlow_Installer
             this.label1.ForeColor = System.Drawing.SystemColors.ButtonHighlight;
             this.label1.Name = "label1";
             // 
+            // latestVersion
+            // 
+            this.latestVersion.BackColor = System.Drawing.SystemColors.ButtonFace;
+            resources.ApplyResources(this.latestVersion, "latestVersion");
+            this.latestVersion.Name = "latestVersion";
+            this.latestVersion.Click += new System.EventHandler(this.latestVersion_Click);
+            // 
+            // progressBar2
+            // 
+            resources.ApplyResources(this.progressBar2, "progressBar2");
+            this.progressBar2.Name = "progressBar2";
+            this.progressBar2.Click += new System.EventHandler(this.progressBar2_Click);
+            // 
             // TyFlow
             // 
             resources.ApplyResources(this, "$this");
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Desktop;
+            this.Controls.Add(this.progressBar2);
+            this.Controls.Add(this.latestVersion);
             this.Controls.Add(this.label1);
             this.Controls.Add(this.label2);
             this.Controls.Add(this.downloadBtn);
@@ -118,6 +135,8 @@ namespace TyFlow_Installer
         private System.Windows.Forms.Button downloadBtn;
         private System.Windows.Forms.Label label2;
         private System.Windows.Forms.Label label1;
+        private System.Windows.Forms.Label latestVersion;
+        private System.Windows.Forms.ProgressBar progressBar2;
     }
 }
 

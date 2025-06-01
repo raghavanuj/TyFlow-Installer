@@ -198,6 +198,9 @@
   <data name="&gt;&gt;Install_Btn.ZOrder" xml:space="preserve">
     <value>6</value>
   </data>
+  <data name="progressBar1.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
+  </data>
   <data name="progressBar1.Location" type="System.Drawing.Point, System.Drawing">
     <value>12, 419</value>
   </data>
@@ -218,6 +221,9 @@
   </data>
   <data name="&gt;&gt;progressBar1.ZOrder" xml:space="preserve">
     <value>5</value>
+  </data>
+  <data name="downloadBtn.ImeMode" type="System.Windows.Forms.ImeMode, System.Windows.Forms">
+    <value>NoControl</value>
   </data>
   <data name="downloadBtn.Location" type="System.Drawing.Point, System.Drawing">
     <value>9, 387</value>

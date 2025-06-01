@@ -401,8 +401,16 @@ namespace TyFlow_Installer
 
         private void CheckLatestVersionOnline()
         {
+            
             if (!isCheckingVersion)
             {
+                if (!CheckForInternetConnection("https://docs.tyflow.com/download/index.html"))
+                {
+                   // label2.Text = "Unable to connect to internet";
+                    latestVersion.Text = "Unable to connect to internet. [click again to retry]"; 
+                    CancelVersionChecking();
+                    return;
+                }
                 CheckLatestBuild();
                 isCheckingVersion = true;
                 //isDownloading = true;
@@ -451,17 +459,29 @@ namespace TyFlow_Installer
             }
         }
 
-        public void CancelVersionChecking()
+        public void CancelVersionChecking(bool isaborted = true)
         {
             if (isCheckingVersion)
             {
                 htmlWebClient.CancelAsync();
-                label2.Text = "Version Check Aborted";
+                if (isaborted)
+                {   
+                    label2.Text = "Version Check Aborted";
+                }
+                else
+                {
+                    label2.Text = "Latest Version Info Downloaded";
+                }
+                
+                    
                 progressBar1.Value = 0;
+                progressBar2.Value = 0;
                 htmlWebClient.DownloadFileCompleted -= new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
                 isCheckingVersion = false;
             }
         }
+
+
 
         private void startDownloadZip()
         {
@@ -515,6 +535,8 @@ namespace TyFlow_Installer
         }
         private void CheckLatestBuild()
         {
+            
+
             if (Directory.Exists(extractPath))
             {
                 DeleteDirectory(extractPath);
@@ -528,10 +550,27 @@ namespace TyFlow_Installer
             htmlWebClient = new WebClient();
             htmlWebClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(client_DownloadProgressChanged_html);
             htmlWebClient.DownloadFileCompleted += new AsyncCompletedEventHandler(client_DownloadFileCompleted_html);
+            
             Console.WriteLine(htmlToTextPath);
             htmlWebClient.DownloadFileAsync(new Uri("https://docs.tyflow.com/download/index.html"), htmlToTextPath);
         }
 
+
+        public static bool CheckForInternetConnection(string _urlToCheck)
+        {
+            try
+            {
+                using (var client = new WebClient())
+                using (var stream = client.OpenRead(_urlToCheck)) // Or any reliable URL
+                {
+                    return true;
+                }
+            }
+            catch
+            {
+                return false;
+            }
+        }
         public void ProcessTextFile()
         {
             string lineWithLatestVersion = "";
@@ -556,6 +595,7 @@ namespace TyFlow_Installer
             latestVersion.Text = "Latest Version: " + externalVersion;
             latestVersion.Visible = true;
             canDownload = true;
+            CancelVersionChecking(false);
             // startDownloadZip();
         }
 

@@ -436,6 +436,13 @@ namespace TyFlow_Installer
 
             if (canDownload)
             {
+                if (!CheckForInternetConnection("https://docs.tyflow.com/download/index.html"))
+                {
+                    // label2.Text = "Unable to connect to internet";
+                    latestVersion.Text = "Unable to connect to internet. [click again to retry]";
+                    CancelVersionChecking();
+                    return;
+                }
                 startDownloadZip();
                 return;
             }
